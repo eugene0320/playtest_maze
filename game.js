@@ -11,8 +11,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const levels = 6;
     const levelHeight = 50;
     let angle = 0; // Maze rotation angle in degrees
+    let animationId = null; // To store requestAnimationFrame ID
+    let gameOver = false; // Flag to check game over status
 
-    // Define paths with clear angular gaps
     const paths = [
         { level: 1, startAngle: 0, endAngle: Math.PI / 6 },
         { level: 2, startAngle: Math.PI / 3, endAngle: Math.PI / 2 },
@@ -24,7 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const ball = {
         x: mazeCenterX,
-        y: mazeCenterY - levels * levelHeight + 10,
+        y: mazeCenterY - (levels * levelHeight) + levelHeight / 2, // Center the ball within the outermost path
         radius: 5,
         velocityY: 1,
         active: false
@@ -65,50 +66,64 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateBallPosition() {
         if (ball.active) {
-            ball.y += ball.velocityY; // Apply gravity
+            const potentialY = ball.y + ball.velocityY;
+            const isPathValid = isWithinAnyPath(ball.x, potentialY);
 
-            if (isWithinAnyPath()) {
-                if (ball.y >= mazeCenterY) {
+            if (isPathValid) {
+                ball.y = potentialY;
+
+                // Check if ball reaches the center
+                if (Math.sqrt((ball.x - mazeCenterX) ** 2 + (ball.y - mazeCenterY) ** 2) <= levelHeight / 2 + ball.radius) {
                     ball.active = false;
-                    ctx.fillText("Complete!", mazeCenterX, mazeCenterY + 20);
+                    gameOver = true;
+                    displayVictoryScreen();
                 }
-            } else {
-                ball.y -= ball.velocityY; // Reset position if not aligned with a path
             }
         }
     }
 
-    function isWithinAnyPath() {
-        const currentRadius = Math.sqrt(Math.pow(ball.x - mazeCenterX, 2) + Math.pow(ball.y - mazeCenterY, 2));
-        const currentLevel = Math.floor((currentRadius - levelHeight) / levelHeight) + 1;
-        const currentAngle = (Math.atan2(ball.y - mazeCenterY, ball.x - mazeCenterX) + 2 * Math.PI) % (2 * Math.PI);
+    function isWithinAnyPath(x, y) {
+        const currentRadius = Math.sqrt(Math.pow(x - mazeCenterX, 2) + Math.pow(y - mazeCenterY, 2));
+        const currentLevel = Math.floor((currentRadius - levelHeight / 2) / levelHeight) + 1;
+        const currentAngle = (Math.atan2(y - mazeCenterY, x - mazeCenterX) + 2 * Math.PI) % (2 * Math.PI);
 
-        const path = paths.find(p => p.level === currentLevel);
-        if (path) {
-            const adjustedStartAngle = (path.startAngle + angle * Math.PI / 180) % (2 * Math.PI);
-            const adjustedEndAngle = (path.endAngle + angle * Math.PI / 180) % (2 * Math.PI);
-            return currentAngle >= adjustedStartAngle && currentAngle <= adjustedEndAngle;
+        for (let path of paths) {
+            if (currentLevel === path.level) {
+                const adjustedStartAngle = (path.startAngle + angle * Math.PI / 180) % (2 * Math.PI);
+                const adjustedEndAngle = (path.endAngle + angle * Math.PI / 180) % (2 * Math.PI);
+                if (currentAngle >= adjustedStartAngle && currentAngle <= adjustedEndAngle) {
+                    return true;
+                }
+            }
         }
         return false;
+    }
+
+    function displayVictoryScreen() {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = 'yellow';
+        ctx.font = '48px Arial';
+        ctx.fillText("Victory!", mazeCenterX, mazeCenterY);
     }
 
     document.addEventListener('keydown', (e) => {
         if (e.key === 'ArrowLeft') {
             angle -= 5;
-            drawMaze();
         } else if (e.key === 'ArrowRight') {
             angle += 5;
-            drawMaze();
         } else if (e.code === 'Space' && !ball.active) {
             ball.active = true;
         }
     });
 
     function update() {
-        drawMaze();
-        updateBallPosition();
-        drawBall();
-        requestAnimationFrame(update);
+        if (!gameOver) {
+            drawMaze();
+            updateBallPosition();
+            drawBall();
+            animationId = requestAnimationFrame(update);
+        }
     }
 
     update(); // Start the animation loop
