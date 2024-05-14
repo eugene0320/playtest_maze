@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function drawBall() {
         ctx.beginPath();
         ctx.arc(ball.x, ball.y, ball.radius, 0, 2 * Math.PI);
-        ctx.fillStyle = 'black';
+        ctx.fillStyle = 'red';
         ctx.fill();
     }
 
